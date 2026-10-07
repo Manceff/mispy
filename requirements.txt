@@ -1,0 +1,8 @@
+# Mispy runs on very little: a terminal UI and readers for whatever you bring
+# into the meeting folder.
+rich>=13.7
+pypdf>=4.2
+python-docx>=1.1
+python-pptx>=1.0
+# Only used if you set minutes.backend = "api" instead of your subscription.
+anthropic>=0.40
