@@ -30,7 +30,7 @@ def resolve(wanted: str) -> str:
     device is named, not numbered. Refuse rather than record the wrong microphone."""
     available = devices()
     if not wanted:
-        raise RuntimeError("no microphone configured (audio.device) -- run `kispy setup`")
+        raise RuntimeError("no microphone configured (audio.device) -- run `mispy setup`")
     for name in available:
         if name.lower() == wanted.lower():
             return name
