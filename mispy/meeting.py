@@ -7,12 +7,39 @@ the difference between "someone will send the deck" and "Alice will send the dec
 """
 from __future__ import annotations
 import datetime, json, pathlib, subprocess
-from . import config
+from . import config, host
 
-HELPER = config.BIN / "mispy-cal"
+HELPER = config.BIN / host.exe("mispy-cal")
+
+
+def source(cfg: dict) -> str:
+    """Which diary to ask: the Calendar app, Outlook, or nobody."""
+    if not cfg["calendar"].get("enabled", True):
+        return "none"
+    want = (cfg["calendar"].get("source") or "auto").lower()
+    if want in ("eventkit", "outlook", "none"):
+        return want
+    return "outlook" if host.WINDOWS else "eventkit"
+
+
+def available(cfg: dict) -> tuple[bool, str]:
+    kind = source(cfg)
+    if kind == "none":
+        return False, "turned off"
+    if kind == "outlook":
+        from . import calendar_win
+        return calendar_win.available()
+    if not HELPER.exists():
+        return False, "mispy-cal is not installed"
+    try:
+        calendars()
+        return True, "Calendar app"
+    except Exception as exc:
+        return False, str(exc)[:120]
 
 
 def calendars() -> list[tuple[str, str]]:
+    """macOS only: Outlook is asked for its default calendar and that is that."""
     if not HELPER.exists():
         raise RuntimeError("mispy-cal is not installed")
     r = subprocess.run([str(HELPER), "--list"], capture_output=True, text=True, timeout=60)
@@ -23,9 +50,20 @@ def calendars() -> list[tuple[str, str]]:
 
 def around(now: datetime.datetime, cfg: dict) -> list[dict]:
     """Events overlapping a window centred on now."""
-    if not cfg["calendar"].get("enabled", True) or not HELPER.exists():
+    kind = source(cfg)
+    if kind == "none":
         return []
     span = datetime.timedelta(minutes=int(cfg["calendar"].get("lookaround_minutes", 30)))
+    if kind == "outlook":
+        try:
+            from . import calendar_win
+            rows = calendar_win.around(now - span, now + span)
+        except Exception:
+            return []
+        return [e for e in rows if (e.get("title") or "").strip()]
+
+    if not HELPER.exists():
+        return []
     try:
         r = subprocess.run([str(HELPER), "--from", (now - span).isoformat(),
                             "--to", (now + span).isoformat()],

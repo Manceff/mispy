@@ -1,7 +1,14 @@
 """Mispy's face. One screen, five keys, and a creature whose expression tells you
 what is going on without you having to read."""
 from __future__ import annotations
-import contextlib, io, os, select, sys, termios, time, tty
+import contextlib, io, os, sys, time
+
+from . import host
+
+if host.WINDOWS:
+    import msvcrt
+else:
+    import select, termios, tty
 
 from rich.align import Align
 from rich.console import Console, Group
@@ -139,9 +146,11 @@ def screen(job: dict, frame: int = 0, confirming: bool = False) -> Panel:
     lines.append("\n")
 
     if stage == state.DONE and job.get("markdown"):
-        lines.append(f"\n  {os.path.basename(job['markdown'])}\n", style="spring_green3")
-        if job.get("pdf"):
-            lines.append(f"  {os.path.basename(job['pdf'])}\n", style="spring_green3")
+        for key in ("markdown", "docx", "pdf"):
+            if job.get(key):
+                lines.append(f"\n  {os.path.basename(job[key])}" if key == "markdown"
+                             else f"  {os.path.basename(job[key])}", style="spring_green3")
+                lines.append("\n", style="spring_green3")
         for n in (job.get("notes") or [])[:3]:
             lines.append(f"   · {n[:62]}\n", style="gold3")
         lines.append("  O to open it.\n", style="grey62")
@@ -172,11 +181,25 @@ def screen(job: dict, frame: int = 0, confirming: bool = False) -> Panel:
 
 
 def key_pressed(timeout: float) -> str | None:
-    """Read the raw descriptor, never sys.stdin: a buffered reader drains the fd
-    into its own buffer, after which select() reports nothing and every later
-    keystroke is silently swallowed."""
+    """One keystroke, or None if the time ran out.
+
+    On Unix, read the raw descriptor and never sys.stdin: a buffered reader drains
+    the fd into its own buffer, after which select() reports nothing and every
+    later keystroke is silently swallowed.
+    """
     if not sys.stdin.isatty():
         time.sleep(timeout)
+        return None
+    if host.WINDOWS:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if msvcrt.kbhit():
+                ch = msvcrt.getwch()
+                if ch in ("\x00", "\xe0"):       # a function or arrow key: swallow it
+                    msvcrt.getwch()
+                    return None
+                return ch.lower()
+            time.sleep(0.03)
         return None
     fd = sys.stdin.fileno()
     if select.select([fd], [], [], timeout)[0]:
@@ -191,10 +214,11 @@ def run() -> int:
         console.print(screen(state.load(), 3))
         return 0
 
-    fd = sys.stdin.fileno()
-    saved = termios.tcgetattr(fd)
+    fd = None if host.WINDOWS else sys.stdin.fileno()
+    saved = None if host.WINDOWS else termios.tcgetattr(fd)
     try:
-        tty.setcbreak(fd)
+        if not host.WINDOWS:
+            tty.setcbreak(fd)
         frame, confirming = 0, False
         with Live(screen(state.load()), console=console, refresh_per_second=4,
                   screen=True) as live:
@@ -217,14 +241,15 @@ def run() -> int:
                 elif k == "p" and stage == state.RECORDING:
                     quiet(cli.pause)
                 elif k == "t" and stage in (state.RECORDING, state.PAUSED):
-                    quiet(cli.stop)
+                    quiet(cli.stop, False)       # no inline questions: we own stdin
                 elif k == "o" and stage == state.DONE:
                     quiet(cli.last)
                 elif k == "x" and stage != state.IDLE:
                     confirming = True
                 live.update(screen(state.load(), frame, confirming))
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        if saved is not None:
+            termios.tcsetattr(fd, termios.TCSADRAIN, saved)
 
     job = state.load()
     if job.get("stage") in (state.RECORDING,) + state.RUNNING_STAGES + (state.DETAILS,):

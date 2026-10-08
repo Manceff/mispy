@@ -5,7 +5,7 @@ The PDF is a bonus, and is treated as one: if it fails to typeset, the job still
 succeeds and you still have the minutes.
 """
 from __future__ import annotations
-import datetime, pathlib, re, subprocess
+import datetime, pathlib, re, shutil, subprocess
 from . import config
 
 STYLE = config.LIB / "style/minutes.tex"
@@ -216,9 +216,107 @@ def latex(parts: dict, meta: dict, cfg: dict) -> str:
     return preamble + "\n\\begin{document}\n\n" + "\n".join(body) + "\n\n\\end{document}\n"
 
 
+# ------------------------------------------------------------------------ docx
+INLINE = re.compile(r"(\*\*.+?\*\*|(?<!\*)\*(?!\s).+?(?<!\s)\*(?!\*)|`.+?`)")
+
+
+def _runs(paragraph, text: str) -> None:
+    """Markdown emphasis into Word runs. The model only ever uses these three."""
+    for piece in INLINE.split(text):
+        if not piece:
+            continue
+        if piece.startswith("**") and piece.endswith("**"):
+            paragraph.add_run(piece[2:-2]).bold = True
+        elif piece.startswith("`") and piece.endswith("`"):
+            run = paragraph.add_run(piece[1:-1])
+            run.font.name = "Consolas"
+        elif piece.startswith("*") and piece.endswith("*"):
+            paragraph.add_run(piece[1:-1]).italic = True
+        else:
+            paragraph.add_run(piece)
+
+
+def _block(doc, block: str, heading_level: int = 3) -> None:
+    for raw in block.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        m = re.match(r"^#{3,6}\s+(.*)$", line)
+        if m:
+            doc.add_heading(m.group(1).strip(), level=heading_level)
+            continue
+        m = re.match(r"^[-*\u2022]\s+(.*)$", line)
+        if m:
+            _runs(doc.add_paragraph(style="List Bullet"), m.group(1).strip())
+            continue
+        _runs(doc.add_paragraph(), line)
+
+
+def docx(parts: dict, meta: dict, cfg: dict, out: pathlib.Path) -> pathlib.Path:
+    """A Word file, because at work that is the document people actually open,
+    edit and forward."""
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from . import minutes as M
+    w = words(cfg)
+
+    doc = Document()
+    org = (cfg["output"].get("organisation") or "").strip()
+    if org:
+        p = doc.add_paragraph()
+        run = p.add_run(org)
+        run.font.size, run.font.color.rgb = Pt(9), RGBColor(0x5A, 0x66, 0x72)
+    doc.add_heading(meta["title"], level=0)
+
+    when = meta["start"]
+    stamp = f"{when:%d/%m/%Y} · {when:%H:%M}"
+    if meta.get("end"):
+        stamp += f"–{meta['end']:%H:%M}"
+    if meta.get("duration_min"):
+        stamp += f" · {round(meta['duration_min'])} {w['minutes']}"
+    sub = doc.add_paragraph()
+    run = sub.add_run(stamp)
+    run.font.size, run.font.color.rgb = Pt(9), RGBColor(0x5A, 0x66, 0x72)
+    if meta.get("attendees"):
+        p = doc.add_paragraph()
+        p.add_run(f"{w['present']} : ").bold = True
+        p.add_run(", ".join(meta["attendees"]))
+
+    if parts.get("summary"):
+        doc.add_heading(w["summary"], level=1)
+        _block(doc, parts["summary"])
+    if parts.get("decisions"):
+        doc.add_heading(w["decisions"], level=1)
+        _block(doc, parts["decisions"])
+
+    rows = M.actions(parts.get("actions", ""))
+    if rows:
+        doc.add_heading(w["actions"], level=1)
+        table = doc.add_table(rows=1, cols=3)
+        table.style = "Light Grid Accent 1"
+        for cell, title in zip(table.rows[0].cells, (w["who"], w["what"], w["when"])):
+            cell.paragraphs[0].add_run(title).bold = True
+        for r in rows:
+            cells = table.add_row().cells
+            cells[0].paragraphs[0].add_run(r["owner"] or "—").bold = True
+            _runs(cells[1].paragraphs[0], r["what"])
+            cells[2].paragraphs[0].add_run(r["when"] or "—")
+        doc.add_paragraph()
+
+    for key, heading in (("discussion", w["discussion"]), ("questions", w["questions"]),
+                         ("followups", w["followups"])):
+        if parts.get(key):
+            doc.add_heading(heading, level=1)
+            _block(doc, parts[key])
+
+    doc.save(str(out))
+    return out
+
+
+# ------------------------------------------------------------------------- pdf
 def compile_pdf(tex: pathlib.Path, outdir: pathlib.Path) -> tuple[pathlib.Path | None, str]:
     try:
-        r = subprocess.run(["tectonic", "-X", "compile", str(tex),
+        r = subprocess.run([shutil.which("tectonic") or "tectonic", "-X", "compile", str(tex),
                             "--outdir", str(outdir), "--keep-logs"],
                            capture_output=True, text=True, timeout=300)
     except FileNotFoundError:

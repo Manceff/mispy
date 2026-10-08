@@ -2,8 +2,8 @@
 
 <p align="center">
   <strong>Deux commandes. Tu as le compte rendu.</strong><br>
-  <sub>Il enregistre la réunion, la transcrit sur ton Mac, et rédige ce qui a été
-  décidé et qui doit quoi à qui.</sub>
+  <sub>Il enregistre la réunion, la transcrit sur ta machine, et rédige ce qui a
+  été décidé et qui doit quoi à qui. <b>macOS et Windows.</b></sub>
 </p>
 
 <p align="center">
@@ -11,7 +11,8 @@
   <a href="#réglage-cinq-minutes-une-fois">Réglage</a> ·
   <a href="#une-réunion-de-bout-en-bout">Déroulé</a> ·
   <a href="#la-salle-la-visio-ou-les-deux">Visios</a> ·
-  <a href="#ce-qui-sort-de-ton-mac">Confidentialité</a> ·
+  <a href="#au-bureau-sur-un-pc-verrouillé">Au bureau</a> ·
+  <a href="#ce-qui-sort-de-ta-machine">Confidentialité</a> ·
   <a href="README.md">🇬🇧 In English</a>
 </p>
 
@@ -32,9 +33,10 @@ mispy stop         # à la fin
 ```
 
 C'est toute l'interface. Mispy enregistre — la salle, la visio, ou les deux — et
-quand tu l'arrêtes il transcrit l'audio **sur ton Mac**, établit ce qui a été
-décidé et qui s'est engagé à quoi, et écrit le tout dans ton dossier de réunions :
-un fichier Markdown à coller directement dans Slack ou un mail, et un PDF à garder.
+quand tu l'arrêtes il transcrit l'audio **sur ta propre machine**, établit ce qui a
+été décidé et qui s'est engagé à quoi, et écrit le tout dans ton dossier de
+réunions : du Markdown à coller dans Slack ou un mail, un fichier Word à faire
+suivre, un PDF à archiver. Tu choisis lesquels.
 
 Ensuite il détruit l'enregistrement et la transcription.
 
@@ -97,18 +99,20 @@ délibérément, après l'avoir dit à voix haute.
 
 | | |
 |---|---|
-| **Un Mac** | Apple Silicon de préférence — la transcription tourne sur le GPU. macOS 13+ pour l'audio des visios ; le micro marche sur tout. |
-| **Un abonnement Claude** | Pro ou Max. Les comptes rendus sont rédigés par Claude via le CLI Claude Code, sur *ton* compte. Mispy ne demande jamais de clé d'API et ne stocke aucun identifiant. |
-| **4 Go de libre environ** | dont 3,1 Go pour le modèle de reconnaissance vocale, qui reste sur ta machine. |
-| **Homebrew** | [brew.sh](https://brew.sh) — l'installeur s'en sert pour ffmpeg et tectonic. |
+| **Un Mac ou un PC Windows** | macOS 13+ (Apple Silicon de préférence — la transcription tourne sur le GPU), ou Windows 10/11. |
+| **Un abonnement Claude** | Pro ou Max, ou une licence Claude Code fournie par ton employeur. Les comptes rendus sont rédigés par Claude via le CLI Claude Code, sur *ton* compte. Mispy ne demande jamais de clé d'API et ne stocke aucun identifiant. |
+| **2 à 4 Go de libre** | essentiellement le modèle de reconnaissance vocale, qui reste sur ta machine et ne communique avec personne. |
+| **Python 3.11+** | l'installeur le trouve, ou l'installe pour ton utilisateur uniquement. |
 
-Tu as déjà [Kispy](https://github.com/Manceff/kispy) ? L'installeur s'en aperçoit
-et réutilise son moteur et ses modèles — pas de second téléchargement de trois
-gigaoctets.
+Rien d'autre. En particulier : pas de droits administrateur, pas de pilote, pas de
+câble audio virtuel, pas de plugin Teams, rien à enregistrer dans l'Azure AD de
+ta boîte.
 
 ---
 
 ## Installation
+
+**macOS**
 
 ```bash
 git clone https://github.com/Manceff/mispy.git
@@ -116,8 +120,25 @@ cd mispy
 ./install.sh
 ```
 
-Tout atterrit dans ton dossier personnel. Pas de `sudo`, rien en dehors, et
-`./uninstall.sh` enlève exactement ce qui a été posé.
+Passe par Homebrew pour ffmpeg et tectonic. Tu as déjà
+[Kispy](https://github.com/Manceff/kispy) ? L'installeur s'en aperçoit et
+réutilise son moteur et ses modèles — pas de second téléchargement.
+
+**Windows**
+
+```powershell
+git clone https://github.com/Manceff/mispy.git
+cd mispy
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Tout atterrit dans `%LOCALAPPDATA%\Mispy`. **Aucun droit administrateur n'est
+nécessaire** — si Python manque, il est installé pour ton utilisateur seulement.
+Ouvre ensuite un *nouveau* terminal pour que la commande `mispy` soit dans ton
+PATH.
+
+Dans les deux cas, la désinstallation enlève exactement ce qui a été posé et ne
+touche jamais à tes comptes rendus.
 
 ---
 
@@ -136,19 +157,20 @@ te demande jamais de clé.
 **2 — Comment tu te réunis.** En salle, en visio, ou les deux. C'est ce qui décide
 de ce qui est capté — voir plus bas.
 
-**3 — Quel micro.** Par nom, jamais par numéro : les index AVFoundation se
-décalent dès qu'un iPhone ou des AirPods apparaissent — c'est comme ça qu'une
-réunion finit enregistrée par un téléphone au fond d'une poche. Il enregistre
-ensuite quatre secondes et te montre le niveau, ce qui déclenche au passage
-l'autorisation micro de macOS.
+**3 — Quel micro**, et sous Windows par quelle sortie arrive la visio — ton casque
+si tu en portes un. Les deux par nom, jamais par numéro : l'ordre se décale dès
+qu'un casque ou un téléphone apparaît, et c'est comme ça qu'une réunion finit
+enregistrée par le mauvais appareil. Il enregistre ensuite quatre secondes et te
+montre le niveau, ce qui déclenche au passage l'autorisation micro du système.
 
-**4 — Où vont les comptes rendus**, dans quelle langue les rédiger, et à quel
-niveau de détail. Il demande aussi si tu veux garder la transcription ; par
-défaut, non.
+**4 — Où vont les comptes rendus**, quels fichiers tu veux (Markdown, Word, PDF),
+dans quelle langue les rédiger, et à quel niveau de détail. Il demande aussi si tu
+veux garder la transcription ; par défaut, non.
 
-**5 — Ton agenda**, en option. Si Mispy peut le lire, une réunion se nomme toute
-seule et arrive avec sa liste de participants déjà remplie — ce qui fait la
-différence entre « quelqu'un enverra le deck » et « Alice enverra le deck ».
+**5 — Ton agenda**, en option — l'app Calendrier sur un Mac, Outlook sur un PC. Si
+Mispy peut le lire, une réunion se nomme toute seule et arrive avec sa liste de
+participants déjà remplie, ce qui fait la différence entre « quelqu'un enverra le
+deck » et « Alice enverra le deck ».
 
 ---
 
@@ -159,7 +181,7 @@ C'est la partie qui compte, et celle que la plupart des outils ratent.
 | | Ce qui est capté | Quand l'utiliser |
 |---|---|---|
 | **mic** | Ton micro | Tout le monde est autour d'une table |
-| **system** | Ce que ton Mac joue | Une visio que tu ne fais qu'écouter |
+| **system** | Ce que ta machine joue | Une visio que tu ne fais qu'écouter |
 | **both** | Les deux, mixés en une piste | **Une visio où tu parles aussi** — le cas normal |
 
 Ton micro t'entend, toi et la salle. En visio avec un casque, c'est *uniquement
@@ -167,16 +189,58 @@ toi* : toutes les autres voix sortent des haut-parleurs et n'atteignent jamais l
 micro. `both` enregistre les deux séparément et les mixe segment par segment, pour
 que tout le monde soit dans la transcription.
 
-L'audio des visios passe par **ScreenCaptureKit** — aucun périphérique audio
-virtuel à installer, pas de Configuration audio et MIDI, pas de redémarrage. macOS
-range cette autorisation sous *Enregistrement de l'écran*, c'est donc ce nom que tu
-verras dans la boîte de dialogue. Rien de l'écran n'est capturé : le flux est
-configuré sur deux pixels de large et seul son son est lu.
+La façon de capter le son de la visio dépend de la machine, et aucune des deux ne
+demande d'installer quoi que ce soit :
 
-> macOS ne demande qu'une fois. Si tu refuses, il ne redemandera pas : Réglages
-> Système ▸ Confidentialité et sécurité ▸ Enregistrement de l'écran et du son,
-> active ton terminal, puis **quitte-le et rouvre-le**. `mispy doctor` te dit où
-> tu en es.
+- **Windows** — le loopback WASAPI. Windows donne le son d'une visio à n'importe
+  quel programme lancé sous ton compte qui le demande. Pas de VB-Cable, pas de
+  VoiceMeeter, pas de « Stereo Mix », pas de redémarrage.
+- **macOS** — ScreenCaptureKit. macOS range cette autorisation sous
+  *Enregistrement de l'écran*, c'est donc ce nom que tu verras. Rien de l'écran
+  n'est capturé : le flux fait deux pixels de large et seul son son est lu. macOS
+  ne demande qu'une fois ; si tu refuses, Réglages Système ▸ Confidentialité et
+  sécurité ▸ Enregistrement de l'écran et du son, puis quitte et rouvre le
+  terminal.
+
+`mispy doctor` te dit où tu en es dans les deux cas.
+
+---
+
+## Au bureau, sur un PC verrouillé
+
+La plupart de ce qu'une entreprise bloque, Mispy ne le demande jamais.
+
+**Il ne touche pas à Teams.** Une réunion Teams, c'est du son qui sort de tes
+haut-parleurs et un rendez-vous dans ton calendrier Outlook. Mispy enregistre le
+son et lit le rendez-vous. Aucune application Teams à installer, aucun bot à faire
+entrer dans la réunion, aucun réglage de tenant à changer — et rien qui apparaisse
+comme un voyant d'enregistrement pour les autres participants, ce qui est
+précisément pourquoi **le dire à voix haute n'est pas optionnel**. Voir
+[plus haut](#avant-denregistrer-quoi-que-ce-soit).
+
+**Il lit ton agenda via Outlook lui-même, en COM.** Pas l'API Graph : Graph exige
+une application enregistrée dans l'Azure AD et, dans la plupart des boîtes, un
+administrateur pour y consentir — exactement la porte fermée sur une machine
+verrouillée. Outlook classique tourne déjà, déjà connecté sous ton compte, et
+répond aux questions sur ton calendrier sans l'autorisation de personne d'autre
+que toi. Mispy y prend le titre de la réunion et sa liste de participants, ce qui
+fait la différence entre « quelqu'un enverra le deck » et « Alice enverra le
+deck ».
+
+> Si ta boîte t'a basculé sur le **nouvel** Outlook, le COM n'existe pas.
+> Rebascule le bouton vers l'Outlook classique, ou coupe l'agenda et nomme tes
+> réunions toi-même : `mispy start "Point hebdo"`. Tout le reste marche pareil.
+
+**La transcription tourne sur le PC.** Aucun audio n'est envoyé nulle part, à
+personne. Sur Windows c'est
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) — un paquet pip, pas
+de compilateur, pas de Visual Studio, pas d'admin.
+
+**Rien n'a besoin des droits administrateur.** Python s'installe pour ton
+utilisateur, le programme vit dans `%LOCALAPPDATA%`, et la seule chose ajoutée au
+système est une entrée dans *ton* PATH.
+
+La seule chose qu'il te faut vraiment, c'est Claude Code, connecté. Tu l'as.
 
 ---
 
@@ -186,12 +250,13 @@ configuré sur deux pixels de large et seul son son est lu.
 |---|---|
 | **tu dis** | « J'enregistre pour faire le compte rendu — dites-moi si ça pose un problème. » |
 | **tu tapes** | `mispy start` — ou `mispy start "Point hebdo"` si ton agenda ne la connaît pas |
-| **pendant** | Rien. Garde l'écran ouvert : si le Mac s'endort, le micro meurt avec lui. `mispy pause` si tu sors. |
+| **pendant** | Rien. Garde l'écran ouvert : si la machine s'endort, le micro meurt avec elle. `mispy pause` si tu sors. |
 | **à la fin** | `mispy stop`. Une boîte de dialogue demande qui était là, pré-remplie depuis ton agenda. |
 | **quelques minutes après** | Une notification. `mispy last` l'ouvre. |
 
 Transcrire une heure de réunion prend environ sept minutes sur un Mac Apple
-Silicon, la rédaction une de plus. Tu peux refermer l'écran pendant ce temps : ça
+Silicon et dix à vingt sur le CPU d'un portable de bureau ; la rédaction une de
+plus. Tu peux refermer l'écran pendant ce temps : ça
 reprend au réveil.
 
 <p align="center">
@@ -232,10 +297,11 @@ qui s'écrit ensuite repose là-dessus.
 
 ---
 
-## Ce qui sort de ton Mac
+## Ce qui sort de ta machine
 
-**L'enregistrement, jamais.** La reconnaissance vocale tourne en local via
-whisper.cpp sur ton GPU. Aucun fichier audio n'est envoyé à qui que ce soit.
+**L'enregistrement, jamais.** La reconnaissance vocale tourne sur cette machine —
+whisper.cpp sur le GPU d'un Mac, faster-whisper sur le CPU d'un PC. Aucun fichier
+audio n'est envoyé à qui que ce soit.
 
 **Le texte, oui.** La transcription — et le texte de ce que tu as déposé dans le
 dossier de la réunion — est envoyée à Claude, parce que c'est ce qui rédige le
@@ -260,13 +326,17 @@ Commence par `mispy doctor`.
 | Symptôme | Ce qui se passe | Solution |
 |---|---|---|
 | Il n'y a que ma voix dans le compte rendu | Tu es en visio avec un casque et tu n'enregistres que le micro | `mispy setup`, choisis *en visio* — ou mets `capture = "both"` |
-| L'audio système échoue au réglage | L'enregistrement de l'écran n'est pas autorisé pour ton terminal | Réglages Système ▸ Confidentialité et sécurité ▸ Enregistrement de l'écran et du son, active ton terminal, **quitte-le et rouvre-le** |
-| Rien n'a été enregistré du tout | Pas d'autorisation micro | Réglages Système ▸ Confidentialité et sécurité ▸ Microphone, autorise ton terminal, puis `mispy test` |
+| L'audio de la visio échoue, **macOS** | L'enregistrement de l'écran n'est pas autorisé pour ton terminal | Réglages Système ▸ Confidentialité et sécurité ▸ Enregistrement de l'écran et du son, active ton terminal, **quitte-le et rouvre-le** |
+| L'audio de la visio échoue, **Windows** | Aucune sortie ne propose de loopback | Définis un périphérique de lecture par défaut dans les paramètres son, puis relance `mispy setup` |
+| Rien n'a été enregistré du tout | Pas d'autorisation micro | macOS : Réglages Système ▸ Confidentialité et sécurité ▸ Microphone. Windows : Paramètres ▸ Confidentialité ▸ Microphone, et autorise les applications de bureau. Puis `mispy test` |
+| `mispy` n'est pas reconnu, **Windows** | Le PATH a été modifié après l'ouverture de ce terminal | Ouvre un nouveau terminal |
+| Outlook ne voit rien dans mon agenda | Tu es sur le nouvel Outlook, qui n'a pas d'interface COM | Repasse sur l'Outlook classique, ou nomme tes réunions toi-même : `mispy start "Point hebdo"` |
+| `pip` n'atteint pas PyPI, **Windows** | Un proxy d'entreprise | `pip config set global.proxy http://ton.proxy:port`, ou demande l'URL de l'index à l'IT, puis relance install.ps1 |
 | Il a enregistré par mon iPhone | Une entrée est apparue et a décalé les index | Déjà traité — Mispy sélectionne par nom. Si le nom a changé, relance `mispy setup` |
 | Il s'est arrêté au milieu | L'écran a été rabattu. Sur Apple Silicon ça force la veille et rien ne peut l'empêcher | Garde l'écran ouvert ; `mispy start` repart sur un nouveau segment et les deux sont recollés |
 | Les noms sont massacrés | Le modèle ignorait que c'étaient des noms | `~/.config/mispy/glossary.txt` |
 | Tout est attribué à la même personne | Mispy ne sépare pas les locuteurs — voir ci-dessous | Dis les prénoms à voix haute, et donne-lui la liste des participants |
-| Pas de PDF, juste du Markdown | tectonic n'est pas installé | `brew install tectonic` |
+| Pas de PDF, juste les autres formats | tectonic n'est pas installé | macOS : `brew install tectonic`. Windows : `winget install TectonicTypesetting.Tectonic`. Markdown et Word n'en ont pas besoin |
 
 **Sur « qui a dit quoi ».** Mispy ne distingue pas les voix. Le compte rendu
 attribue une action quand un prénom a été prononcé, ou quand la liste des
@@ -280,23 +350,38 @@ fausse fait plus de dégâts qu'une case vide.
 
 ```mermaid
 flowchart LR
-    MIC[Micro<br/>ffmpeg] --> MIX[mixé par segment<br/>16 kHz mono]
-    SYS[Audio visio<br/>ScreenCaptureKit] --> MIX
-    CAL[Agenda<br/>EventKit · optionnel] --> META[titre + participants]
-    MIX --> WH[whisper.cpp<br/>Metal · local<br/>horodaté]
+    MIC[Micro] --> MIX[mixé par segment<br/>16 kHz mono]
+    SYS[Audio visio<br/>loopback] --> MIX
+    CAL[Agenda<br/>optionnel] --> META[titre + participants]
+    MIX --> WH[Whisper<br/>sur cette machine<br/>horodaté]
     META --> CL
     WH --> CL[Claude<br/>rédige le compte rendu]
     DOC[Ordre du jour, deck<br/>que tu as déposés] --> CL
-    CL --> MD[Markdown]
-    CL --> PDF[LaTeX → PDF]
+    CL --> MD[Markdown · Word · PDF]
     MD --> SHRED[(audio + transcription<br/>détruits)]
 ```
+
+Seules la première et la dernière étape dépendent de la plateforme. Tout ce qu'il
+y a entre les deux est le même code :
+
+| | macOS | Windows |
+|---|---|---|
+| Micro | ffmpeg (AVFoundation) | WASAPI, via `soundcard` |
+| Audio visio | ScreenCaptureKit, dans un petit utilitaire Swift | loopback WASAPI |
+| Mixage | ffmpeg | numpy |
+| Reconnaissance | whisper.cpp sur le GPU (Metal) | faster-whisper sur le CPU |
+| Agenda | EventKit, dans un petit utilitaire Swift | Outlook, en COM |
+| Empêcher la veille | `caffeinate` | `SetThreadExecutionState` |
 
 Quelques décisions qui ne vont pas de soi :
 
 - **Deux enregistreurs, mixés par segment et non par piste.** Ils ne démarrent pas
   à la même milliseconde ; mixer des pistes entières empilerait cette erreur sur
   toute une réunion de deux heures.
+- **Le moteur suit le modèle, pas la machine.** Un modèle en `.bin`, c'est
+  whisper.cpp ; tout autre nom, c'est faster-whisper. Déduire le moteur de ce qui
+  se trouve installé ferait qu'un même fichier de configuration se comporterait
+  différemment sur deux machines.
 - **La transcription garde les horodatages.** Un compte rendu sans eux est
   invérifiable.
 - **Le Markdown est le livrable, le PDF est un bonus.** Si la composition échoue,
@@ -314,7 +399,7 @@ Plus de détails dans [docs/how-it-works.md](docs/how-it-works.md).
 ## Questions
 
 **Ça marche avec Teams / Zoom / Meet / les huddles Slack ?** Oui — il enregistre
-ce que ton Mac joue, quel que soit ce qui le joue.
+ce que ta machine joue, quel que soit ce qui le joue.
 
 **Ça coûte combien ?** Rien de plus que l'abonnement Claude que tu as déjà. La
 transcription est locale et gratuite.
@@ -326,6 +411,14 @@ autre chose.
 **Je peux changer la structure du compte rendu ?** Les sections sont définies dans
 `RULES`, dans `mispy/minutes.py` ; le PDF est un seul fichier LaTeX,
 `style/minutes.tex`.
+
+**Quels fichiers j'obtiens ?** Ceux que tu demandes au setup, parmi `md`, `docx`
+et `pdf`. Word est le défaut sous Windows, parce qu'au bureau c'est le fichier que
+les gens ouvrent et font suivre. Le Markdown est toujours écrit, quoi qu'il arrive
+au reste.
+
+**Il faut un GPU ?** Non. Sur un portable de bureau ça tourne sur le CPU, c'est
+pour ça que l'installeur y propose `large-v3-turbo` plutôt que `large-v3`.
 
 **Il y a un démarrage automatique ?** Non, volontairement. Voir
 [plus haut](#avant-denregistrer-quoi-que-ce-soit).

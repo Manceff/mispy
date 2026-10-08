@@ -2,40 +2,22 @@
 output already exists, so a job interrupted by a closing lid resumes where it
 stopped rather than starting over."""
 from __future__ import annotations
-import datetime, pathlib, subprocess, traceback
-from . import attachments, capture, config, meeting, minutes, render, shred, state, transcribe
+import datetime, pathlib, traceback
+from . import attachments, capture, config, host, meeting, minutes, render, shred, state, transcribe
+
+notify = host.notify
 
 
-def notify(title: str, text: str, subtitle: str = "") -> None:
-    sub = f' subtitle "{subtitle}"' if subtitle else ""
-    subprocess.run(["osascript", "-e",
-                    f'display notification "{text}" with title "{title}"{sub}'], check=False)
+def split_names(raw: str) -> list[str]:
+    return [n.strip() for n in (raw or "").replace(";", ",").split(",") if n.strip()]
 
 
 def ask_details(folder: pathlib.Path, prefill: list[str], title: str) -> list[str]:
-    """One dialog, at the end rather than the start: who was there. Prefilled from
-    the diary when the diary knew."""
-    default = ", ".join(prefill)
-    script = (
-        f'display dialog "Who was in {title[:40]}?\\n\\nNames, separated by commas. '
-        f'Leave it empty if you would rather not." '
-        f'default answer "{default}" buttons {{"Add files…", "OK"}} default button "OK" '
-        f'with title "Mispy" giving up after 900')
-    r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-    out = r.stdout or ""
-    names = ""
-    for part in out.split(", button returned:"):
-        if part.startswith("text returned:"):
-            names = part.split(":", 1)[1]
-    if "text returned:" in out and not names:
-        names = out.split("text returned:", 1)[1].split(", button returned:")[0]
-    if "button returned:Add files" in out:
-        subprocess.run(["open", str(folder)], check=False)
-        subprocess.run(["osascript", "-e",
-                        'display dialog "Drop your files in the folder, then continue." '
-                        'buttons {"Continue"} default button "Continue" with title "Mispy" '
-                        'giving up after 900'], capture_output=True)
-    return [n.strip() for n in names.replace(";", ",").split(",") if n.strip()]
+    """Who was there. Normally asked in the terminal the moment you type `stop`;
+    this is the fallback for when that terminal is already gone."""
+    answer = host.ask_text("Mispy", f"Who was in {title[:40]}?\n\n"
+                                    "Names, separated by commas.", ", ".join(prefill))
+    return split_names(answer) if answer is not None else list(prefill)
 
 
 def run(job: dict) -> None:
@@ -52,7 +34,8 @@ def run(job: dict) -> None:
                             cfg["audio"]["sample_rate"])
 
         if job["stage"] == state.DETAILS:
-            names = ask_details(folder, job.get("attendees", []), job["title"])
+            names = (job.get("attendees", []) if job.get("asked")
+                     else ask_details(folder, job.get("attendees", []), job["title"]))
             job = state.set_stage(state.TRANSCRIBING, attendees=names)
 
         if not transcript_path.exists():
@@ -96,15 +79,21 @@ def run(job: dict) -> None:
         md_path.write_text(render.markdown(parts, meta, cfg), encoding="utf-8")
 
         notes = [f"unreadable attachment, ignored: {n}" for n in skipped]
-        pdf_path = None
-        if cfg["output"].get("pdf", True):
+        wanted = config.formats(cfg)
+        pdf_path = docx_path = None
+        if "docx" in wanted:
+            try:
+                docx_path = render.docx(parts, meta, cfg, folder / f"{stem}.docx")
+            except Exception as exc:
+                notes.append(f"the Word file could not be written ({str(exc)[:60]})")
+        if "pdf" in wanted:
             tex = folder / f"{stem}.tex"
             tex.write_text(render.latex(parts, meta, cfg), encoding="utf-8")
             pdf_path, err = render.compile_pdf(tex, folder)
             if pdf_path is None:
-                notes.append("the PDF did not typeset — the Markdown is complete")
+                notes.append("the PDF did not typeset — the other formats are complete")
             else:
-                tex.unlink(missing_ok=True)   # the folder keeps .md and .pdf
+                tex.unlink(missing_ok=True)
 
         if not cfg["privacy"].get("keep_audio", False):
             shred.wipe(wav)
@@ -121,7 +110,8 @@ def run(job: dict) -> None:
         if not minutes.actions(parts.get("actions", "")):
             notes.append("no action was recorded — check that is right")
         state.set_stage(state.DONE, markdown=str(md_path), error=None, trace=None,
-                        pdf=str(pdf_path) if pdf_path else "", notes=notes,
+                        pdf=str(pdf_path) if pdf_path else "",
+                        docx=str(docx_path) if docx_path else "", notes=notes,
                         finished_at=datetime.datetime.now().isoformat(timespec="seconds"))
         notify("Mispy", title[:60], "Minutes ready")
 

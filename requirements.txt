@@ -1,8 +1,16 @@
-# Mispy runs on very little: a terminal UI and readers for whatever you bring
-# into the meeting folder.
+# Mispy runs on very little.
 rich>=13.7
 pypdf>=4.2
 python-docx>=1.1
 python-pptx>=1.0
+
+# Windows records and mixes in Python: there is no ffmpeg to install, and no
+# virtual audio cable. Whisper runs through faster-whisper, which is a wheel
+# rather than a compiler. pywin32 is how Outlook is asked about your day.
+soundcard>=0.4.3 ; sys_platform == "win32"
+numpy>=1.24 ; sys_platform == "win32"
+faster-whisper>=1.0 ; sys_platform == "win32"
+pywin32>=306 ; sys_platform == "win32"
+
 # Only used if you set minutes.backend = "api" instead of your subscription.
 anthropic>=0.40

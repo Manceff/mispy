@@ -84,6 +84,9 @@ ok "$LIB"
 [ -d "$LIB/.venv" ] || "$PYTHON" -m venv "$LIB/.venv"
 "$LIB/.venv/bin/pip" install --quiet --upgrade pip
 "$LIB/.venv/bin/pip" install --quiet -r "$SRC/requirements.txt"
+# so that the detached worker, started as `python -m`, can find the package
+site="$("$LIB/.venv/bin/python" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")"
+printf '%s\n' "$LIB" > "$site/mispy.pth"
 ok "python packages"
 
 step "Two small native helpers"

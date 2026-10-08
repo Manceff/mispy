@@ -1,7 +1,7 @@
 """The command surface. One command to start, one to stop, and that is the job."""
 from __future__ import annotations
 import datetime, pathlib, subprocess, sys, time
-from . import capture, config, meeting, pipeline, recorder, state
+from . import capture, config, host, meeting, pipeline, state
 
 PY = sys.executable
 LIB = str(config.LIB)
@@ -61,32 +61,67 @@ def start(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _index(job: dict) -> int:
+    return len(job.get("segments", [])) or 1
+
+
 def pause() -> int:
     job = state.load()
     if job["stage"] != state.RECORDING:
         return 1
-    capture.stop(job.get("pids"))
+    capture.stop(job.get("pids"), config.work_dir(), _index(job))
     state.set_stage(state.PAUSED, pids={})
     print("⏸ Paused.  `mispy start` resumes.")
     return 0
 
 
-def stop() -> int:
+def _ask_inline(job: dict) -> list[str]:
+    """Who was there, asked right here while you still have a terminal. Far less
+    intrusive than a dialog that appears ten minutes later over whatever you have
+    moved on to."""
+    prefill = ", ".join(job.get("attendees", []))
+    try:
+        print(f"\n  Who was in the meeting?  [grey]{prefill}[/]".replace("[grey]", "")
+              .replace("[/]", "") if prefill else "\n  Who was in the meeting?")
+        print("  Names separated by commas, or just press return.")
+        answer = input("  > ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return job.get("attendees", [])
+    names = pipeline.split_names(answer) if answer else job.get("attendees", [])
+
+    folder = pathlib.Path(job.get("folder", ""))
+    try:
+        add = input("  Anything of your own to add — an agenda, a deck? [y/N] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        add = ""
+    if add in ("y", "yes", "o", "oui") and folder.is_dir():
+        host.open_path(folder)
+        try:
+            input("  Drop your files in the folder, then press return. ")
+        except (EOFError, KeyboardInterrupt):
+            pass
+    return names
+
+
+def stop(interactive: bool = True) -> int:
     job = state.load()
     if job["stage"] not in (state.RECORDING, state.PAUSED):
         print("Nothing is being recorded.")
         return 1
     if job["stage"] == state.RECORDING:
-        capture.stop(job.get("pids"))
+        capture.stop(job.get("pids"), config.work_dir(), _index(job))
     captured = capture.minutes_captured(config.work_dir(), job.get("segments", []),
                                         config.load()["audio"]["sample_rate"])
-    state.set_stage(state.DETAILS, pids={}, minutes_captured=captured)
-    subprocess.Popen([PY, "-c", f"import sys; sys.path.insert(0, {LIB!r}); "
-                                "from mispy import cli; cli.work()"],
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     stdin=subprocess.DEVNULL, start_new_session=True)
-    print(f"■ Stopped — {captured:.0f} min. The minutes are being written.")
-    print("  You can close the terminal, and your Mac.")
+    attendees, asked = job.get("attendees", []), False
+    if interactive and sys.stdin.isatty() and sys.stdout.isatty():
+        attendees, asked = _ask_inline(job), True
+    state.set_stage(state.DETAILS, pids={}, minutes_captured=captured,
+                    attendees=attendees, asked=asked)
+    host.detached([PY, "-c", f"import sys; sys.path.insert(0, {LIB!r}); "
+                             "from mispy import cli; cli.work()"])
+    print(f"\n■ Stopped — {captured:.0f} min. The minutes are being written.")
+    print("  You can close the terminal, and this machine.")
     return 0
 
 
@@ -100,8 +135,9 @@ def discard() -> int:
         print("Nothing to discard.")
         return 1
     if job.get("stage") == state.RECORDING:
-        capture.stop(job.get("pids"))
-    subprocess.run(["pkill", "-f", "cli.work()"], capture_output=True)
+        capture.stop(job.get("pids"), config.work_dir(), _index(job))
+    if not host.WINDOWS:
+        subprocess.run(["pkill", "-f", "cli.work()"], capture_output=True)
     shred.clean(config.work_dir())
     folder = pathlib.Path(job.get("folder", ""))
     if folder.is_dir() and not [p for p in folder.iterdir() if p.name != ".mispy"]:
@@ -118,13 +154,14 @@ def work() -> int:
 
 def last() -> int:
     job = state.load()
-    path = job.get("pdf") or job.get("markdown")
-    if not path or not pathlib.Path(path).exists():
-        print("No minutes yet.")
-        return 1
-    subprocess.run(["open", path], check=False)
-    print(path)
-    return 0
+    for key in ("docx", "pdf", "markdown"):
+        path = job.get(key)
+        if path and pathlib.Path(path).exists():
+            host.open_path(path)
+            print(path)
+            return 0
+    print("No minutes yet.")
+    return 1
 
 
 def status() -> int:
@@ -147,9 +184,9 @@ def status() -> int:
         else:
             print("All OK.")
     elif stage == state.DONE:
-        print(job.get("markdown", ""))
-        if job.get("pdf"):
-            print(job["pdf"])
+        for key in ("markdown", "docx", "pdf"):
+            if job.get(key):
+                print(job[key])
         for n in job.get("notes") or []:
             print(f"  · {n}")
     elif stage == state.FAILED:
@@ -173,7 +210,7 @@ def selftest() -> int:
         return 1
     print(f"Mispy — testing {', '.join(sorted(pids))}. Speak for 8 seconds…")
     time.sleep(8)
-    capture.stop(pids)
+    capture.stop(pids, work, 1)
     try:
         wav = capture.mixdown(work, [1], work / "t.wav", cfg["audio"]["sample_rate"])
     except Exception as exc:
@@ -197,7 +234,7 @@ def selftest() -> int:
 
 
 def doctor() -> int:
-    from . import wizard
+    from . import transcribe, wizard
     cfg = config.load()
     ok = True
 
@@ -206,41 +243,54 @@ def doctor() -> int:
         ok &= bool(good)
         print(f"  {'✓' if good else '✗'} {name}" + (f"  {detail}" if detail else ""))
 
+    def info(name, detail=""):
+        print(f"  · {name}" + (f"  {detail}" if detail else ""))
+
     print("Mispy")
+    info("platform", host.NAME)
     check("configuration", config.exists(),
           "" if config.exists() else "never set up — run `mispy setup`")
     mode = cfg["audio"]["capture"]
-    print(f"  · capture mode  {mode}")
+    info("capture mode", mode)
     if mode in ("mic", "both"):
         try:
-            check("microphone", True, recorder.resolve(cfg["audio"]["device"]))
-        except RuntimeError as exc:
-            check("microphone", False, str(exc)[:90])
+            check("microphone", True, capture.resolve(cfg["audio"]["device"]))
+        except Exception as exc:
+            check("microphone", False, str(exc)[:100])
     if mode in ("system", "both"):
-        good = capture.system_available()
-        check("system audio", good,
-              "" if good else "allow Screen Recording for your terminal in System Settings")
-    check("speech model", pathlib.Path(cfg["transcribe"]["model"]).exists(),
-          pathlib.Path(cfg["transcribe"]["model"]).name)
-    for binary, hint in (("ffmpeg", "brew install ffmpeg"),):
-        found = subprocess.run(["which", binary], capture_output=True).returncode == 0
-        check(binary, found, "" if found else hint)
-    tectonic = subprocess.run(["which", "tectonic"], capture_output=True).returncode == 0
-    print(f"  {'✓' if tectonic else '·'} tectonic"
-          + ("" if tectonic else "  not installed — Markdown only, no PDF"))
+        try:
+            check("call audio", True, capture.resolve(cfg["audio"].get("system_device", ""),
+                                                      loopback=True))
+        except Exception:
+            check("call audio", False, capture.system_hint()[:110])
+
+    good, detail = transcribe.available(cfg)
+    check("transcription", good, detail)
+
+    wanted = config.formats(cfg)
+    info("formats", ", ".join(wanted))
+    if "pdf" in wanted:
+        import shutil as _sh
+        has = _sh.which("tectonic") is not None
+        print(f"  {'✓' if has else '·'} tectonic"
+              + ("" if has else "  not installed — no PDF, the other formats still work"))
+
     st = wizard.claude_state()
     check("Claude", st == "ok",
           {"ok": "", "not-installed": "npm install -g @anthropic-ai/claude-code",
            "not-logged-in": "run `claude` once, then /login"}[st])
     check("output folder", pathlib.Path(cfg["output"]["root"]).exists(),
           cfg["output"]["root"].replace(str(pathlib.Path.home()), "~"))
-    if cfg["calendar"].get("enabled", True):
+
+    good, detail = meeting.available(cfg)
+    if good:
         try:
             n = len(meeting.around(datetime.datetime.now(), cfg))
-            print(f"  ✓ calendar  {n} event(s) around now")
+            info(f"diary  {detail}", f"{n} event(s) around now")
         except Exception as exc:
-            print(f"  · calendar  unavailable ({str(exc)[:50]}) — you can still name "
-                  "meetings yourself")
+            info(f"diary  {detail}", f"unreadable ({str(exc)[:40]})")
+    else:
+        info("diary", f"{detail} — you can still name meetings yourself")
     return 0 if ok else 1
 
 
