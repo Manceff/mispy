@@ -48,6 +48,21 @@ def calendars() -> list[tuple[str, str]]:
     return [tuple(l.split("\t", 1)) for l in r.stdout.splitlines() if "\t" in l]
 
 
+def local_naive(value) -> datetime.datetime | None:
+    """Every datetime inside Mispy is naive local time: that is what the job file
+    records and what the minutes print. The calendars are the one place offsets
+    come in -- EventKit always, Outlook sometimes -- so they are flattened here,
+    at the border, rather than being allowed to meet a naive `now` later on."""
+    if isinstance(value, datetime.datetime):
+        d = value
+    else:
+        try:
+            d = datetime.datetime.fromisoformat(str(value))
+        except (TypeError, ValueError):
+            return None
+    return d.astimezone().replace(tzinfo=None) if d.tzinfo is not None else d
+
+
 def around(now: datetime.datetime, cfg: dict) -> list[dict]:
     """Events overlapping a window centred on now."""
     kind = source(cfg)
@@ -65,8 +80,12 @@ def around(now: datetime.datetime, cfg: dict) -> list[dict]:
     if not HELPER.exists():
         return []
     try:
-        r = subprocess.run([str(HELPER), "--from", (now - span).isoformat(),
-                            "--to", (now + span).isoformat()],
+        # The reader parses RFC 3339, which needs an offset and no fractional
+        # seconds; a bare "2026-10-12T12:37:00.123456" was silently unparseable
+        # and the window quietly fell back to a default hour either side.
+        lo = (now - span).astimezone().isoformat(timespec="seconds")
+        hi = (now + span).astimezone().isoformat(timespec="seconds")
+        r = subprocess.run([str(HELPER), "--from", lo, "--to", hi],
                            capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             return []
@@ -84,17 +103,21 @@ def around(now: datetime.datetime, cfg: dict) -> list[dict]:
     return out
 
 
+def _starts_at(event: dict) -> datetime.datetime | None:
+    return local_naive(event.get("start"))
+
+
 def best(now: datetime.datetime, cfg: dict) -> dict | None:
     """The event you are most likely sitting in: the one whose start is nearest."""
     events = around(now, cfg)
     if not events:
         return None
+    here = local_naive(now) or datetime.datetime.now()
+
     def distance(e):
-        try:
-            start = datetime.datetime.fromisoformat(e["start"])
-        except Exception:
-            return 1e9
-        return abs((start - now).total_seconds())
+        start = _starts_at(e)
+        return 1e9 if start is None else abs((start - here).total_seconds())
+
     return min(events, key=distance)
 
 

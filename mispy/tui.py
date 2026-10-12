@@ -98,8 +98,16 @@ def creature(kind: str, frame: int = 0) -> Text:
 
 
 def quiet(fn, *a):
-    with contextlib.redirect_stdout(io.StringIO()):
-        return fn(*a)
+    """Run a command without letting its output break the layout -- and without
+    letting a failure inside it take the whole app down. Losing the window on a
+    keystroke is worse than any single command failing."""
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return fn(*a)
+    except Exception as exc:                            # noqa: BLE001 - shown, not hidden
+        from . import state as _state
+        _state.set_stage(_state.FAILED, error=f"{type(exc).__name__}: {exc}"[:160])
+        return 1
 
 
 def elapsed_of(job: dict) -> str:
