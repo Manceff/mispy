@@ -191,8 +191,13 @@ def ask_text(title: str, prompt: str, default: str = "") -> str | None:
         out = r.stdout or ""
         if "button returned:Skip" in out or "gave up:true" in out:
             return None
-        if "text returned:" in out:
-            return out.split("text returned:", 1)[1].split(", button returned:")[0].strip()
-        return None
+        # osascript returns its record in its own order, e.g.
+        #   button returned:OK, text returned:Viet, gave up:false
+        # Splitting on one trailing field only left « Viet, gave up:false » as a
+        # name, which is what landed in a set of minutes.
+        import re
+        m = re.search(r"text returned:(.*?)(?:,\s*(?:button returned|gave up)\s*:|$)",
+                      out, re.S)
+        return m.group(1).strip() if m else None
     except Exception:
         return None
