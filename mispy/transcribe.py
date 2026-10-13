@@ -155,8 +155,9 @@ def _run_faster(wav: pathlib.Path, cfg: dict):
                              download_root=str(config.MODELS))
         _MODEL_CACHE[key] = model
     prompt = glossary()
+    lang = (t["language"] or "").strip().lower()
     segments, _info = model.transcribe(
-        str(wav), language=t["language"] or None, beam_size=5,
+        str(wav), language=None if lang in ("", "auto") else lang, beam_size=5,
         vad_filter=True, vad_parameters={"min_silence_duration_ms": 400},
         initial_prompt=prompt or None, condition_on_previous_text=True)
     return [(s.start, s.text) for s in segments]

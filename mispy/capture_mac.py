@@ -72,7 +72,10 @@ def _start_system(out: pathlib.Path, work: pathlib.Path) -> int:
     if not HELPER.exists():
         raise RuntimeError("mispy-audio is not installed")
     log = open(work / "system.log", "ab")
-    proc = subprocess.Popen(["/usr/bin/nohup", "/usr/bin/caffeinate", "-i",
+    # -d en plus de -i : ScreenCaptureKit s'arrête net quand l'écran s'endort
+    # (« impossible de trouver des écrans à capturer »), et -i ne couvre que la
+    # veille système. L'écran reste donc allumé tant que la visio est captée.
+    proc = subprocess.Popen(["/usr/bin/nohup", "/usr/bin/caffeinate", "-di",
                              str(HELPER), str(out)],
                             stdout=log, stderr=log, stdin=subprocess.DEVNULL,
                             start_new_session=True)
