@@ -11,6 +11,10 @@ soundcard>=0.4.3 ; sys_platform == "win32"
 numpy>=1.24 ; sys_platform == "win32"
 faster-whisper>=1.0 ; sys_platform == "win32"
 pywin32>=306 ; sys_platform == "win32"
+# Le bouton dans la zone de notification. Sur Mac c'est une petite application
+# Swift à la place, donc ces deux-là n'y sont pas installés.
+pystray>=0.19 ; sys_platform == "win32"
+pillow>=10.0 ; sys_platform == "win32"
 
 # Only used if you set minutes.backend = "api" instead of your subscription.
 anthropic>=0.40

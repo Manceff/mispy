@@ -306,6 +306,7 @@ Mispy — records your meetings and hands you back the minutes.
   mispy status             what it is doing right now
   mispy last               open the minutes it wrote last
 
+  mispy tray               the button in the notification area (Windows)
   mispy setup              connect Claude, the microphone, the call audio
   mispy doctor             check everything is wired
   mispy test               record eight seconds and transcribe them
@@ -325,6 +326,9 @@ def main(argv: list[str]) -> int:
     if cmd in ("setup", "install"):
         from . import wizard
         return wizard.run(argv[2:])
+    if cmd == "tray":
+        from . import tray
+        return tray.run()
     if cmd in ("help", "-h", "--help"):
         print(HELP)
         return 0

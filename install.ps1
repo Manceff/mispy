@@ -109,6 +109,43 @@ $cmd = @"
 Set-Content -Path "$BinDir\mispy.cmd" -Value $cmd -Encoding ASCII
 Ok "mispy"
 
+# ------------------------------------------------------------------ bouton ----
+Head "The button in your notification area"
+$trayCmd = @"
+@echo off
+start "" "$venv\Scripts\pythonw.exe" -c "import sys; sys.path.insert(0, r'$Lib'); from mispy import tray; sys.exit(tray.run())"
+"@
+Set-Content -Path "$BinDir\mispy-tray.cmd" -Value $trayCmd -Encoding ASCII
+Ok "mispy-tray"
+
+# Un raccourci dans le menu Démarrer : l'utilisateur ne devrait jamais avoir à
+# retrouver un .cmd dans AppData pour lancer son enregistreur.
+try {
+  $startMenu = [Environment]::GetFolderPath("Programs")
+  $shell = New-Object -ComObject WScript.Shell
+  $lnk = $shell.CreateShortcut((Join-Path $startMenu "Mispy.lnk"))
+  $lnk.TargetPath = "$BinDir\mispy-tray.cmd"
+  $lnk.WorkingDirectory = $BinDir
+  $lnk.WindowStyle = 7                       # réduit : pas de fenêtre noire au lancement
+  $lnk.Description = "Mispy - records your meetings and writes the minutes"
+  $lnk.Save()
+  Ok "shortcut in the Start menu"
+  if ([System.Environment]::UserInteractive) {
+    $answer = Read-Host "  Start it automatically when you log in? [Y/n]"
+    if ($answer -notmatch '^[nN]') {
+      $startup = [Environment]::GetFolderPath("Startup")
+      $auto = $shell.CreateShortcut((Join-Path $startup "Mispy.lnk"))
+      $auto.TargetPath = "$BinDir\mispy-tray.cmd"
+      $auto.WorkingDirectory = $BinDir
+      $auto.WindowStyle = 7
+      $auto.Save()
+      Ok "it will be there every morning"
+    }
+  }
+} catch {
+  Warn "could not create the shortcut ($($_.Exception.Message)) - run mispy-tray by hand"
+}
+
 if (-not $NoPath) {
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
   if ($userPath -notlike "*$BinDir*") {
@@ -164,5 +201,6 @@ Write-Host ""
 Write-Host "Installed." -ForegroundColor White
 Write-Host ""
 Write-Host "  Open a NEW terminal, then run:  mispy setup" -ForegroundColor Cyan
-Write-Host "  Five minutes, once. Then it is two commands a meeting."
+Write-Host "  Five minutes, once. Then it is one click from the Start menu:"
+Write-Host "  look for Mispy, and a dot appears next to your clock." 
 Write-Host ""

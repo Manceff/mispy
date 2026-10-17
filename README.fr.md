@@ -265,31 +265,35 @@ reprend au réveil.
 
 ---
 
-## Le bouton dans la barre de menus
+## Le bouton
 
 Le terminal convient pour régler l'outil une fois. Il ne convient pas pour lancer
-un enregistrement entre deux réunions. `Mispy.app` pose un simple point dans ta
-barre de menus :
+un enregistrement entre deux réunions. Il y a donc un bouton, et c'est le même
+bouton sur les deux systèmes : un point qui dit l'état, et un menu dessous.
+
+|  | |
+|---|---|
+| **macOS** | `Mispy.app`, dans ta barre de menus. Un micro au repos, un cercle rouge avec le temps écoulé pendant l'enregistrement, un crayon pendant la rédaction, une coche quand c'est prêt. |
+| **Windows** | Un point à côté de l'horloge, dans la zone de notification. Gris au repos, rouge à l'enregistrement, violet pendant le travail, vert quand le compte rendu est prêt. |
 
 ```
-●  Mispy — Enregistre
-   Comité produit
-   ─────────────────────────────
-   Terminer et rédiger        ⌘S
+●  Mispy — Enregistre · Comité produit · 12:34
+   ─────────────────────────────────
+   Terminer et rédiger
    Mettre en pause
    Supprimer la prise
-   ─────────────────────────────
+   ─────────────────────────────────
    Ouvrir le dernier compte rendu
    Ouvrir le dossier des réunions
 ```
 
-Le point te dit l'état d'un coup d'œil — un micro au repos, un cercle rouge avec le
-temps écoulé pendant l'enregistrement, un crayon pendant la rédaction, une coche
-quand c'est prêt. Il ne fait rien lui-même : il lit le fichier d'état de Mispy et
-appelle la même commande `mispy` que tu aurais tapée.
+Ni l'un ni l'autre ne contient de logique : les deux lisent le fichier d'état de
+Mispy et appellent la même commande `mispy` que tu aurais tapée. Une seule
+implémentation à qui faire confiance, et c'est celle qui est testée.
 
-L'installeur le construit. Ouvre-le une fois depuis `~/Applications`, et mets-le
-dans tes ouvertures de session si tu le veux tous les matins.
+Les installeurs les mettent en place. Sur Mac, ouvre `Mispy.app` une fois depuis
+`~/Applications`. Sur Windows, cherche **Mispy** dans le menu Démarrer — l'installeur
+propose de le lancer avec ta session, et le point est simplement là tous les matins.
 
 > macOS attribue les autorisations à l'application qui demande : le premier
 > enregistrement lancé depuis la barre de menus redemandera donc le micro, même si

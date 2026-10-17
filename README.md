@@ -258,30 +258,35 @@ on wake.
 
 ---
 
-## The button in your menu bar
+## The button
 
 The terminal is fine for setting the thing up once. It is not fine for starting a
-recording between two meetings. `Mispy.app` puts a single dot in your menu bar:
+recording between two meetings. So there is a button, and it is the same button on
+both systems: one dot that tells you the state, and a menu under it.
+
+|  | |
+|---|---|
+| **macOS** | `Mispy.app`, in your menu bar. A microphone at rest, a red circle with the elapsed time while recording, a pencil while the minutes are written, a tick when they are ready. |
+| **Windows** | A dot next to your clock, in the notification area. Grey at rest, red while recording, violet while it works, green when the minutes are ready. |
 
 ```
-●  Mispy — Enregistre
-   Comité produit
-   ─────────────────────────────
-   Terminer et rédiger        ⌘S
+●  Mispy — Enregistre · Comité produit · 12:34
+   ─────────────────────────────────
+   Terminer et rédiger
    Mettre en pause
    Supprimer la prise
-   ─────────────────────────────
+   ─────────────────────────────────
    Ouvrir le dernier compte rendu
    Ouvrir le dossier des réunions
 ```
 
-The dot tells you the state at a glance — a microphone when idle, a red record
-circle with the elapsed time while recording, a pencil while the minutes are being
-written, a tick when they are ready. It does nothing itself: it reads Mispy's state
-file and calls the same `mispy` command you would have typed.
+Neither holds any logic of its own: both read Mispy's job file and call the same
+`mispy` command you would have typed. There is one implementation to trust, and it
+is the tested one.
 
-The installer builds it. Open it once from `~/Applications`, and add it to your
-login items if you want it there every morning.
+The installers put them in place. On macOS, open `Mispy.app` once from
+`~/Applications`. On Windows, look for **Mispy** in the Start menu — the installer
+offers to start it with your session, so the dot is simply there every morning.
 
 > macOS attributes permissions to the application that asks, so the first
 > recording started from the menu bar asks for the microphone again, even if you
