@@ -95,6 +95,33 @@ ok "mispy-audio  records what your Mac is playing (ScreenCaptureKit)"
 swiftc -O -o "$BIN/mispy-cal" "$SRC/swift/mispy-cal.swift"
 ok "mispy-cal    names a meeting from your diary (EventKit)"
 
+step "The menu bar button"
+APP="$HOME/Applications/Mispy.app"
+if swiftc -O -o /tmp/mispy-bar "$SRC/swift/MispyBar.swift" -framework AppKit 2>/dev/null; then
+  rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS"
+  mv /tmp/mispy-bar "$APP/Contents/MacOS/Mispy"
+  cat > "$APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Mispy</string>
+  <key>CFBundleIdentifier</key><string>com.mispy.bar</string>
+  <key>CFBundleExecutable</key><string>Mispy</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>Mispy records the meeting so it can write the minutes.</string>
+  <key>NSCalendarsUsageDescription</key><string>Mispy reads your diary to name the meeting and find who was in it.</string>
+</dict></plist>
+PLIST
+  # signature ad hoc : sans elle, macOS oublie les autorisations à chaque build
+  codesign --force --deep -s - "$APP" >/dev/null 2>&1 || true
+  ok "Mispy.app — un point dans la barre de menus, deux clics"
+else
+  warn "l'application de barre de menus n'a pas pu être compilée — le CLI marche quand même"
+fi
+
 step "Speech recognition (whisper.cpp)"
 if [ -n "$SIBLING" ] && [ ! -e "$WHISPER" ]; then
   ln -s "$SIBLING/whisper.cpp" "$WHISPER"
@@ -167,4 +194,5 @@ esac
 
 printf "\n"; bold "Installed."
 printf "\n  Now run:  \033[1;36mmispy setup\033[0m\n"
+printf "  Then open Mispy.app once: it puts a button in your menu bar.\n"
 printf "  Five minutes, once. Then it is two commands a meeting.\n\n"

@@ -9,6 +9,8 @@ STATE="$HOME/.local/state/mispy"
 ask() { printf "  %s [y/N] " "$1"; read -r a || a=n; [ "$a" = "y" ] || [ "$a" = "Y" ]; }
 
 printf "\nRemoving Mispy.\n\n"
+rm -rf "$HOME/Applications/Mispy.app"
+osascript -e 'quit app "Mispy"' 2>/dev/null || true
 rm -f "$BIN/mispy" "$BIN/mispy-audio" "$BIN/mispy-cal"; printf "  ✓ commands removed\n"
 rm -rf "$LIB" "$STATE"; printf "  ✓ program and working files removed\n"
 if [ -d "$SHARE" ]; then

@@ -258,6 +258,37 @@ on wake.
 
 ---
 
+## The button in your menu bar
+
+The terminal is fine for setting the thing up once. It is not fine for starting a
+recording between two meetings. `Mispy.app` puts a single dot in your menu bar:
+
+```
+●  Mispy — Enregistre
+   Comité produit
+   ─────────────────────────────
+   Terminer et rédiger        ⌘S
+   Mettre en pause
+   Supprimer la prise
+   ─────────────────────────────
+   Ouvrir le dernier compte rendu
+   Ouvrir le dossier des réunions
+```
+
+The dot tells you the state at a glance — a microphone when idle, a red record
+circle with the elapsed time while recording, a pencil while the minutes are being
+written, a tick when they are ready. It does nothing itself: it reads Mispy's state
+file and calls the same `mispy` command you would have typed.
+
+The installer builds it. Open it once from `~/Applications`, and add it to your
+login items if you want it there every morning.
+
+> macOS attributes permissions to the application that asks, so the first
+> recording started from the menu bar asks for the microphone again, even if you
+> had already allowed your terminal. Once, then never again.
+
+---
+
 ## Commands
 
 | | |

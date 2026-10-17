@@ -265,6 +265,38 @@ reprend au réveil.
 
 ---
 
+## Le bouton dans la barre de menus
+
+Le terminal convient pour régler l'outil une fois. Il ne convient pas pour lancer
+un enregistrement entre deux réunions. `Mispy.app` pose un simple point dans ta
+barre de menus :
+
+```
+●  Mispy — Enregistre
+   Comité produit
+   ─────────────────────────────
+   Terminer et rédiger        ⌘S
+   Mettre en pause
+   Supprimer la prise
+   ─────────────────────────────
+   Ouvrir le dernier compte rendu
+   Ouvrir le dossier des réunions
+```
+
+Le point te dit l'état d'un coup d'œil — un micro au repos, un cercle rouge avec le
+temps écoulé pendant l'enregistrement, un crayon pendant la rédaction, une coche
+quand c'est prêt. Il ne fait rien lui-même : il lit le fichier d'état de Mispy et
+appelle la même commande `mispy` que tu aurais tapée.
+
+L'installeur le construit. Ouvre-le une fois depuis `~/Applications`, et mets-le
+dans tes ouvertures de session si tu le veux tous les matins.
+
+> macOS attribue les autorisations à l'application qui demande : le premier
+> enregistrement lancé depuis la barre de menus redemandera donc le micro, même si
+> tu l'avais déjà accordé à ton terminal. Une fois, puis plus jamais.
+
+---
+
 ## Les commandes
 
 | | |
